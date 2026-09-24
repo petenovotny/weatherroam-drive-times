@@ -1,23 +1,73 @@
 {
-  "_comment": "Production build: United States and Canada destinations on the whole North America graph (US-Canada trips and some US-US trips cross the border). Mexico is not a destination in v1.",
+  "_comment": "Production build: United States and Canada destinations on the whole North America graph (US-Canada trips and some US-US trips cross the border). Mexico is not a destination in v1. Destinations come ONLY from --ids (WeatherRoam's town list: every US/CA row of data/towns.tsv), so dest_min_population is set out of reach.",
   "region": "na",
   "geofabrik": "north-america",
-  "origin_countries": ["US", "CA"],
-  "dest_countries": ["US", "CA"],
+  "origin_countries": [
+    "US",
+    "CA"
+  ],
+  "dest_countries": [
+    "US",
+    "CA"
+  ],
   "admin1": null,
   "grid_deg": 0.1,
   "max_minutes": 420,
   "prefilter_km": 840,
-  "dest_min_population": 15000,
+  "dest_min_population": 1000000000,
   "build_threads": 8,
   "workers": 30,
   "reference_origins": [],
   "named_cases": [
-    {"from": [44.9778, -93.2650], "to": "Duluth", "min": 125, "max": 155, "ferry": false},
-    {"from": [47.6062, -122.3321], "to": "Friday Harbor", "ferry": true},
-    {"from": [47.6062, -122.3321], "to": "Bainbridge Island", "ferry": true},
-    {"from": [47.6062, -122.3321], "to": "Tacoma", "ferry": false},
-    {"from": [41.6532, -70.2828], "to": "Nantucket", "ferry": true},
-    {"from": [44.6488, -63.5752], "to": "Charlottetown", "ferry": false}
+    {
+      "from": [
+        44.9778,
+        -93.265
+      ],
+      "to": "Duluth",
+      "min": 125,
+      "max": 155,
+      "ferry": false
+    },
+    {
+      "from": [
+        47.6062,
+        -122.3321
+      ],
+      "to": "Friday Harbor",
+      "ferry": true
+    },
+    {
+      "from": [
+        47.6062,
+        -122.3321
+      ],
+      "to": "Bainbridge Island",
+      "ferry": true
+    },
+    {
+      "from": [
+        47.6062,
+        -122.3321
+      ],
+      "to": "Tacoma",
+      "ferry": false
+    },
+    {
+      "from": [
+        41.6532,
+        -70.2828
+      ],
+      "to": "Nantucket",
+      "ferry": true
+    },
+    {
+      "from": [
+        44.6488,
+        -63.5752
+      ],
+      "to": "Charlottetown",
+      "ferry": false
+    }
   ]
 }

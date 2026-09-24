@@ -155,6 +155,7 @@ def main() -> None:
                 )
             )
 
+    cells_to_run = sum(len(job[1]) for job in jobs)
     workers = args.workers or region["workers"]
     log(f"{len(groups)} groups, {len(jobs)} to run, {workers} workers")
     t0 = time.time()
@@ -168,7 +169,14 @@ def main() -> None:
     wall = time.time() - t0
     (wd / "compute.json").write_text(
         json.dumps(
-            {"groups": len(groups), "ran": len(jobs), "pairs_this_run": pairs, "wall_seconds": round(wall, 1)},
+            {
+                "groups": len(groups),
+                "ran": len(jobs),
+                "cells_total": len(origins),
+                "cells_this_run": cells_to_run,
+                "pairs_this_run": pairs,
+                "wall_seconds": round(wall, 1),
+            },
             indent=2,
         )
         + "\n"
