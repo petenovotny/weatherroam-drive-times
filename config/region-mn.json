@@ -1,0 +1,31 @@
+{
+  "_comment": "Laptop smoke run: Minnesota only. Same pipeline as North America, smaller inputs.",
+  "region": "mn",
+  "geofabrik": "north-america/us/minnesota",
+  "origin_countries": ["US"],
+  "dest_countries": ["US"],
+  "admin1": ["MN"],
+  "grid_deg": 0.1,
+  "max_minutes": 420,
+  "prefilter_km": 840,
+  "dest_min_population": 15000,
+  "build_threads": 8,
+  "workers": 8,
+  "reference_origins": [
+    ["Minneapolis downtown", 44.9778, -93.2650],
+    ["St. Paul Cathedral Hill", 44.9467, -93.1100],
+    ["Edina", 44.8897, -93.3499],
+    ["Stillwater", 45.0564, -92.8060],
+    ["St. Cloud", 45.5608, -94.1622],
+    ["Rochester", 44.0121, -92.4802],
+    ["Mankato", 44.1636, -93.9994],
+    ["Brainerd", 46.3580, -94.2008],
+    ["Bemidji", 47.4736, -94.8803],
+    ["Moorhead", 46.8738, -96.7678]
+  ],
+  "named_cases": [
+    {"from": [44.9778, -93.2650], "to": "Duluth", "min": 125, "max": 155, "ferry": false},
+    {"from": [44.9778, -93.2650], "to": "Rochester", "min": 70, "max": 95, "ferry": false},
+    {"from": [44.9778, -93.2650], "to": "Saint Cloud", "min": 55, "max": 80, "ferry": false}
+  ]
+}

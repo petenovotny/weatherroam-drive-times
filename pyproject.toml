@@ -1,0 +1,14 @@
+[project]
+name = "weatherroam-drive-times"
+version = "0.1.0"
+description = "Precomputed drive-time table (OpenStreetMap + Valhalla) for WeatherRoam's Weekend Pick"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pyvalhalla==3.9.0",
+    "osmium>=4.0",
+    "numpy>=2.0",
+    "scipy>=1.13",
+]
+
+[tool.uv]
+package = false

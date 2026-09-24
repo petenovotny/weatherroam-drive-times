@@ -1,0 +1,7 @@
+*.osm.pbf
+*.sqlite
+*.tar
+.venv/
+__pycache__/
+out/
+work/

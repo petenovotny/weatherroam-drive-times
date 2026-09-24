@@ -1,0 +1,26 @@
+{
+  "_comment": "Laptop smoke run for the ferry pass: Washington state (Puget Sound ferries, San Juan Islands).",
+  "region": "wa",
+  "geofabrik": "north-america/us/washington",
+  "origin_countries": ["US"],
+  "dest_countries": ["US"],
+  "admin1": ["WA"],
+  "grid_deg": 0.1,
+  "max_minutes": 420,
+  "prefilter_km": 840,
+  "dest_min_population": 1500,
+  "build_threads": 8,
+  "workers": 8,
+  "reference_origins": [
+    ["Seattle downtown", 47.6062, -122.3321],
+    ["Tacoma", 47.2529, -122.4443],
+    ["Spokane", 47.6588, -117.4260]
+  ],
+  "named_cases": [
+    {"from": [47.6062, -122.3321], "to": "Friday Harbor", "ferry": true},
+    {"from": [47.6062, -122.3321], "to": "Bainbridge Island", "ferry": true},
+    {"from": [47.6062, -122.3321], "to": "Olympia", "ferry": false},
+    {"from": [47.6062, -122.3321], "to": "Wenatchee", "ferry": false},
+    {"from": [47.6062, -122.3321], "to": "Tacoma", "min": 25, "max": 50, "ferry": false}
+  ]
+}

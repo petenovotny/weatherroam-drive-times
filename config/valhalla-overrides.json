@@ -1,0 +1,15 @@
+{
+  "_comment": "Merged over valhalla_build_config output. See METHOD.md section 'Router settings'.",
+  "thor": {
+    "source_to_target_algorithm": "timedistancematrix"
+  },
+  "service_limits": {
+    "auto": {
+      "max_matrix_distance": 2000000.0,
+      "max_matrix_location_pairs": 2000000
+    }
+  },
+  "mjolnir": {
+    "max_cache_size": 1000000000
+  }
+}
