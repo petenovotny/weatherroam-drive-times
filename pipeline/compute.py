@@ -88,7 +88,8 @@ PER_TARGET_MAX = 300
 
 def _per_target(src, dst_pts, costing, exc):
     """One source whose request failed because some towns are on a road network
-    it cannot reach (islands: Hawaii, some coastal Alaska). Valhalla rejects the
+    it cannot reach (islands: Hawaii, some coastal Alaska; fly-in communities
+    reach none). Valhalla rejects the
     whole request then, so route to each town alone and leave the unreachable
     ones empty. Only for small target sets; anything else stays a failure.
     """
@@ -98,14 +99,18 @@ def _per_target(src, dst_pts, costing, exc):
     base_s = np.full((1, n), np.nan)
     base_km = np.full((1, n), np.nan)
     ferry_s = np.full((1, n), np.nan)
+    other_error = False
     for j in range(n):
         try:
             b, km, f = _both_passes(src, dst_pts[j : j + 1], costing)
-        except Exception:  # noqa: BLE001 -- unreachable town: stays empty
+        except Exception as exc_j:  # noqa: BLE001 -- unreachable town: stays empty
+            other_error |= "unconnected regions" not in str(exc_j)
             continue
         base_s[0, j], base_km[0, j], ferry_s[0, j] = b[0, 0], km[0, 0], f[0, 0]
-    if not np.isfinite(base_s).any():
+    if not np.isfinite(base_s).any() and other_error:
         return None
+    # Every town unreachable by road (a fly-in community) is an answer, not a
+    # failure: the cell simply has no entries and the app uses its estimate.
     return base_s, base_km, ferry_s
 
 
