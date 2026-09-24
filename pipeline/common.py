@@ -58,7 +58,10 @@ def cell_index(lat: float, lng: float, deg: float = 0.1) -> tuple[int, int]:
 
 
 def cell_key(lat_idx: int, lng_idx: int) -> int:
-    return (lat_idx + 900) * 3600 + (lng_idx + 1800)
+    # Longitude indices wrap to [-1800, 1799]: +180 is the same cell as -180,
+    # and nothing aliases into the next latitude row. The backend wraps the same.
+    wrapped = (lng_idx + 1800) % 3600 - 1800
+    return (lat_idx + 900) * 3600 + (wrapped + 1800)
 
 
 def cell_centre(lat_idx: int, lng_idx: int, deg: float = 0.1) -> tuple[float, float]:

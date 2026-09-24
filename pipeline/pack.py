@@ -9,7 +9,8 @@ a reader can map typed arrays over the file without copying):
     8   u32 nCells, u32 nDest, u32 nPairs, u32 headerJsonLen
     24  header JSON (UTF-8), zero-padded to 8
         destIds   u32[nDest]        GeoNames ids, ascending
-        cellKeys  i32[nCells]       ascending; key = (floor(lat*10)+900)*3600 + (floor(lng*10)+1800)
+        cellKeys  i32[nCells]       ascending; key = (floor(lat*10)+900)*3600 + (wrap(floor(lng*10))+1800),
+                                    wrap() maps longitude indices into [-1800, 1799]
         cellOffs  u32[nCells+1]     pairs of cell i are [cellOffs[i], cellOffs[i+1])
         pairDest  u16|u32[nPairs]   index into destIds; within a cell, sorted by minutes
         pairVal   u16[nPairs]       bits 0-9 minutes (0-1023), bit 10 needs a ferry,
@@ -121,7 +122,7 @@ def main(region_name: str, version: str) -> None:
         "version": version,
         "builtAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "maxMinutes": region["max_minutes"],
-        "grid": {"deg": region["grid_deg"], "key": "(floor(lat*10)+900)*3600+(floor(lng*10)+1800)"},
+        "grid": {"deg": region["grid_deg"], "key": "(floor(lat*10)+900)*3600+(wrap(floor(lng*10))+1800), wrap to [-1800,1799]"},
         "osm": {k: inputs["osm"][k] for k in ("file", "md5", "replication_timestamp")},
         "router": {
             "name": "valhalla",
