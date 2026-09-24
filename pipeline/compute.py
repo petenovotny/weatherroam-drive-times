@@ -83,6 +83,32 @@ def _describe(exc: BaseException) -> str:
     return f"{type(exc).__name__}: {exc}"
 
 
+PER_TARGET_MAX = 300
+
+
+def _per_target(src, dst_pts, costing, exc):
+    """One source whose request failed because some towns are on a road network
+    it cannot reach (islands: Hawaii, some coastal Alaska). Valhalla rejects the
+    whole request then, so route to each town alone and leave the unreachable
+    ones empty. Only for small target sets; anything else stays a failure.
+    """
+    if "unconnected regions" not in str(exc) or len(dst_pts) > PER_TARGET_MAX:
+        return None
+    n = len(dst_pts)
+    base_s = np.full((1, n), np.nan)
+    base_km = np.full((1, n), np.nan)
+    ferry_s = np.full((1, n), np.nan)
+    for j in range(n):
+        try:
+            b, km, f = _both_passes(src, dst_pts[j : j + 1], costing)
+        except Exception:  # noqa: BLE001 -- unreachable town: stays empty
+            continue
+        base_s[0, j], base_km[0, j], ferry_s[0, j] = b[0, 0], km[0, 0], f[0, 0]
+    if not np.isfinite(base_s).any():
+        return None
+    return base_s, base_km, ferry_s
+
+
 def _run_group(job):
     """Run one job. Returns ("ok", ...) or ("error", name, message, failed_sources).
 
@@ -105,7 +131,11 @@ def _run_group(job):
             try:
                 rows.append((k, *_both_passes(src_pts[k : k + 1], dst_pts, costing)))
             except Exception as exc_k:  # noqa: BLE001
-                failed.append((int(src_idx[k]), _describe(exc_k)))
+                row = _per_target(src_pts[k : k + 1], dst_pts, costing, exc_k)
+                if row is None:
+                    failed.append((int(src_idx[k]), _describe(exc_k)))
+                else:
+                    rows.append((k, *row))
         if not rows:
             return ("error", name, first_error, [i for i, _ in failed])
         keep_k = [k for k, *_ in rows]

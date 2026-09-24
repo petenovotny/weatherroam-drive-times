@@ -1,6 +1,6 @@
 {
   "_comment": "Two passes over the same tiles. 'ferry' makes ferries almost unusable, so a pair that gets much slower (or unreachable) needs a ferry. METHOD.md explains why use_ferry=0 alone is not enough.",
-  "expansion_max_distance_m": 1000000,
+  "expansion_max_distance_m": 780000,
   "ferry_delta_minutes": 10,
   "passes": {
     "default": { "use_ferry": 0.5, "ferry_cost": 300, "use_tolls": 0.5, "country_crossing_cost": 600 },

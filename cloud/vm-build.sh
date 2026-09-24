@@ -75,8 +75,10 @@ fi
 stage origins;      uv run python origins.py na
 stage destinations; uv run python destinations.py na --ids ../config/dest-ids-na.txt
 
+# One matrix worker per CPU, less two for the OS and the log uploader.
+WORKERS=$(( $(nproc) - 2 ))
 stage pilot
-uv run python compute.py na --limit-groups 100
+uv run python compute.py na --limit-groups 100 --workers "$WORKERS"
 PROJECTED=$(uv run python - <<'EOF'
 import json
 c = json.load(open("../work/na/compute.json"))
@@ -89,7 +91,7 @@ if uv run python -c "import sys; sys.exit(0 if $PROJECTED > $MAX_HOURS else 1)";
   finish stopped-projection
 fi
 
-stage matrix;       uv run python compute.py na
+stage matrix;       uv run python compute.py na --workers "$WORKERS"
 stage pack;         uv run python pack.py na "$VERSION"
 stage validate
 if uv run python validate.py na "$VERSION"; then RESULT=ok; else RESULT=validation-failed; fi

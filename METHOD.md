@@ -53,14 +53,22 @@ files in `config/`, so the files, not this text, are authoritative.
 ## 5. Drive times
 
 - Grid cells are grouped by 1 x 1 degree tile. For each group, one matrix
-  request routes from those cells to every town within 840 km in a straight
-  line. Valhalla runs one forward search from each cell.
+  request routes from those cells to every town within 720 km in a straight
+  line. Valhalla runs one forward search from each cell, which stops at 780 km
+  of road (`expansion_max_distance_m` in `config/costing.json`).
 - Why forward: searching backwards from each town would need about five
   times fewer searches, but in testing it overstated times compared with
   Valhalla's own route between the same two points (Washington: 5% of trips
   by more than 5.3%, worst 52%). Forward searches match the route.
-- The 840 km cut is only there to save computing; no road trip within 7 hours
-  covers more straight-line distance than that.
+- Both cuts are only there to save computing. No road trip within 6 hours
+  covers more than 720 km in a straight line, and none covers more than 780
+  km of road (that would be a 130 km/h average). The road cut matters most:
+  on the full continental graph a search otherwise keeps expanding long after
+  the last reachable town, and the first North America run projected 40 hours
+  without it.
+- Starting points whose every destination is on an unconnected road network
+  (another Hawaiian island, say) are retried one destination at a time;
+  towns they cannot reach are simply absent.
 - **Two passes, same graph** (`config/costing.json`):
   1. **Default:** ordinary car costing, 5 minutes added per ferry crossing and
      10 per border crossing. This is the time that is stored.
@@ -70,7 +78,8 @@ files in `config/`, so the files, not this text, are authoritative.
   
   Turning ferries off alone is not enough: Valhalla still uses a ferry when
   there is no other way, so islands would not be flagged.
-- **Kept:** trips of 7 hours (420 minutes) or less by the default pass.
+- **Kept:** trips of 6 hours (360 minutes) or less by the default pass, the
+  largest radius the app offers.
 - Times are free-flow: no traffic, no time of day, no seasonal closures.
   (`pipeline/compute.py`)
 

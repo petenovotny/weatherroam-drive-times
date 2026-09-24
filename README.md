@@ -16,7 +16,7 @@ United States and Canada table has not been released yet.
 
 | File | What it is | Licence |
 |---|---|---|
-| `drive-table-<version>.bin` | The table: for each ~11 x 8 km grid cell, the driving minutes to every town on the list within 7 hours, with flags for trips that need a ferry or cross a border | [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) |
+| `drive-table-<version>.bin` | The table: for each ~11 x 8 km grid cell, the driving minutes to every town on the list within 6 hours, with flags for trips that need a ferry or cross a border | [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) |
 | `origins-<version>.tsv` | The grid cells and the point each is routed from | CC BY 4.0 (GeoNames) |
 | `destinations-<version>.tsv` | The towns, by GeoNames id | CC BY 4.0 (GeoNames) |
 | `manifest-<version>.json` | Exactly which OpenStreetMap extract, router version and settings produced it | -- |
