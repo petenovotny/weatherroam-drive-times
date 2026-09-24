@@ -48,6 +48,19 @@ def _pad8(b: bytes) -> bytes:
     return b + b"\0" * (-len(b) % 8)
 
 
+def write_table(path: Path, header: dict, dest_ids, cell_keys, offs, pair_dest, pair_val) -> None:
+    """Write format v1. Arrays must already be sorted and typed as documented."""
+    wide = pair_dest.dtype == np.uint32
+    header_bytes = _pad8(json.dumps(header, separators=(",", ":"), ensure_ascii=False).encode())
+    with open(path, "wb") as fh:
+        fh.write(MAGIC)
+        fh.write(struct.pack("<HH", FORMAT_VERSION, 1 if wide else 0))
+        fh.write(struct.pack("<IIII", len(cell_keys), len(dest_ids), len(pair_val), len(header_bytes)))
+        fh.write(header_bytes)
+        for arr in (dest_ids, cell_keys, offs, pair_dest, pair_val):
+            fh.write(_pad8(np.ascontiguousarray(arr).astype(arr.dtype.newbyteorder("<")).tobytes()))
+
+
 def main(region_name: str, version: str) -> None:
     region = load_region(region_name)
     wd = work_dir(region_name)
@@ -127,16 +140,8 @@ def main(region_name: str, version: str) -> None:
         "attribution": "© OpenStreetMap contributors",
         "licenceUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
     }
-    header_bytes = _pad8(json.dumps(header, separators=(",", ":"), ensure_ascii=False).encode())
-
     table = out / f"drive-table-{version}.bin"
-    with open(table, "wb") as fh:
-        fh.write(MAGIC)
-        fh.write(struct.pack("<HH", FORMAT_VERSION, 1 if wide else 0))
-        fh.write(struct.pack("<IIII", len(cell_keys), len(dest_ids), len(pair_val), len(header_bytes)))
-        fh.write(header_bytes)
-        for arr in (dest_ids, cell_keys, offs, pair_dest, pair_val):
-            fh.write(_pad8(arr.tobytes()))
+    write_table(table, header, dest_ids, cell_keys, offs, pair_dest, pair_val)
 
     shutil.copy(wd / "origins.tsv", out / f"origins-{version}.tsv")
     shutil.copy(wd / "destinations.tsv", out / f"destinations-{version}.tsv")
