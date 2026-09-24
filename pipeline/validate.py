@@ -5,10 +5,8 @@ Checks (numbering follows the build plan):
                    destination reachable from at least one cell
   V2 snap error    exact reference origins routed directly, against the table
                    entry for their cell: p50 <= 8 min, p90 <= 15 min
-  V3 symmetry      forward one-to-many routes against the table's reverse
-                   searches on random pairs: p95 <= 5 min, p99 <= 10 min.
-                   The reverse error is one-sided (it only overstates) and
-                   below the cell snap error V2 allows; METHOD.md has the data
+  V3 consistency   the table against fresh one-to-many routes from the same
+                   cell points on random pairs: p99 |diff| <= 2 min
   V4 physics       implied road speed: none above 137 km/h; slow long pairs listed
   V6 named cases   region-specific expectations (config/region-*.json)
 Not run here: V5 (second routing engine), V8 (seasonal probe), V9 (known
@@ -161,7 +159,7 @@ def main(region_name: str, version: str) -> None:
     p95 = float(np.percentile(sym, 95)) if sym else 0.0
     p99 = float(np.percentile(sym, 99)) if sym else 0.0
     results.append(
-        ("V3 direction symmetry", p95 <= 5 and p99 <= 10, f"p95 {p95:.1f} min, p99 {p99:.1f} min over {len(sym)} pairs")
+        ("V3 consistency", p99 <= 2, f"p95 {p95:.1f} min, p99 {p99:.1f} min over {len(sym)} pairs")
     )
 
     # V4

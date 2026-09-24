@@ -1,10 +1,14 @@
 """Drive times from every origin cell to every destination town within reach.
 
-Towns are grouped by 1 x 1 degree tile. For each group, one matrix request goes
-from every origin cell within `prefilter_km` (straight line) of any town in the
-group to those towns. With Valhalla's timedistancematrix, a request with more
-sources than targets runs one reverse search per target, so the cost is about
-one graph search per town rather than one per cell.
+Origin cells are grouped by 1 x 1 degree tile. For each group, one matrix
+request goes from the group's cells to every town within `prefilter_km`
+(straight line) of any of them. With Valhalla's timedistancematrix, a request
+with fewer sources than targets runs one FORWARD search per source cell.
+
+Forward, not reverse: the plan first grouped by town (one reverse search per
+town, about 5x fewer searches), but reverse searches overstated times against
+Valhalla's own point-to-point route, by up to 9% at p99 and 52% at worst in the
+Washington pilot. Forward searches match the route. METHOD.md has the figures.
 
 Two passes per group over the same tiles (config/costing.json):
 - default: ordinary costing; this is the time that is stored;
@@ -23,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 import time
 from collections import defaultdict
 from multiprocessing import Pool
@@ -31,6 +36,8 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from common import CONFIG, actor, chord_for_km, load_region, location, log, read_tsv, unit_xyz, work_dir
+
+JOB_CELLS = 20
 
 _ACTOR = None
 _REGION = None
@@ -105,39 +112,48 @@ def main() -> None:
     o_centre = np.array([r["geonameid"] == "0" for r in origins])
     d_lat = np.array([float(r["lat"]) for r in dests])
     d_lng = np.array([float(r["lng"]) for r in dests])
-    tree = cKDTree(unit_xyz(o_lat, o_lng))
+    dest_tree = cKDTree(unit_xyz(d_lat, d_lng))
     radius = chord_for_km(region["prefilter_km"])
 
     groups: dict[str, list[int]] = defaultdict(list)
-    for j in range(len(dests)):
-        groups[f"{math.floor(d_lat[j])}_{math.floor(d_lng[j])}"].append(j)
+    for i in range(len(origins)):
+        groups[f"{math.floor(o_lat[i])}_{math.floor(o_lng[i])}"].append(i)
 
     jobs = []
     names = sorted(groups)
     if args.limit_groups:
-        names = names[: args.limit_groups]
-    d_xyz = unit_xyz(d_lat, d_lng)
+        # A pilot samples groups across the region rather than one corner.
+        names = sorted(random.Random(0).sample(names, min(args.limit_groups, len(names))))
+    o_xyz = unit_xyz(o_lat, o_lng)
     for name in names:
-        out = shards / f"{name}.npz"
-        if out.exists():
+        cells = groups[name]
+        near = dest_tree.query_ball_point(o_xyz[cells], radius)
+        dst_idx = sorted(set().union(*near))
+        if not dst_idx:
             continue
-        dst_idx = groups[name]
-        near = tree.query_ball_point(d_xyz[dst_idx], radius)
-        src_idx = sorted(set().union(*near))
-        if not src_idx:
-            continue
-        jobs.append(
-            (
-                name,
-                src_idx,
-                dst_idx,
-                list(zip(o_lat[src_idx], o_lng[src_idx], o_centre[src_idx])),
-                list(zip(d_lat[dst_idx], d_lng[dst_idx])),
-                costing,
-                region["max_minutes"],
-                out,
+        # Valhalla searches forward only while sources < targets; with more
+        # sources it silently switches to reverse searches. Split so every
+        # request stays forward (only matters where towns are few), and into
+        # jobs of at most JOB_CELLS so the worker pool stays evenly loaded.
+        size = max(1, min(len(cells), len(dst_idx) - 1, JOB_CELLS))
+        for part, start in enumerate(range(0, len(cells), size)):
+            src_idx = cells[start : start + size]
+            label = name if size >= len(cells) else f"{name}_{part}"
+            out = shards / f"{label}.npz"
+            if out.exists():
+                continue
+            jobs.append(
+                (
+                    label,
+                    src_idx,
+                    dst_idx,
+                    list(zip(o_lat[src_idx], o_lng[src_idx], o_centre[src_idx])),
+                    list(zip(d_lat[dst_idx], d_lng[dst_idx])),
+                    costing,
+                    region["max_minutes"],
+                    out,
+                )
             )
-        )
 
     workers = args.workers or region["workers"]
     log(f"{len(groups)} groups, {len(jobs)} to run, {workers} workers")
@@ -148,7 +164,7 @@ def main() -> None:
         for name, ns, nd, kept, secs in pool.imap_unordered(_run_group, jobs):
             done += 1
             pairs += kept
-            log(f"[{done}/{len(jobs)}] {name}: {ns} sources x {nd} towns -> {kept} pairs in {secs:.1f}s")
+            log(f"[{done}/{len(jobs)}] {name}: {ns} cells x {nd} towns -> {kept} pairs in {secs:.1f}s")
     wall = time.time() - t0
     (wd / "compute.json").write_text(
         json.dumps(

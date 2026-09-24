@@ -139,9 +139,8 @@ def actor(region: str):
 
 
 # Cell-centre points (no town in the cell) snap only to tertiary or better
-# roads. From a farm track or gravel road, Valhalla's reverse matrix searches
-# overstate the drive time (7.5% of such pairs by more than 5 min in the
-# Minnesota pilot, against 1.7% with this filter). See METHOD.md.
+# roads, so a trip starts from a road that goes somewhere rather than a farm
+# track or a private drive that may not connect to the network.
 CENTRE_SNAP_FILTER = {"min_road_class": "tertiary"}
 
 

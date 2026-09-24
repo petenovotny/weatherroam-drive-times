@@ -36,10 +36,8 @@ files in `config/`, so the files, not this text, are authoritative.
   ring of neighbouring cells around each such cell.
 - Each cell is routed from one point: the most populous GeoNames place in the
   cell, or, if the cell has none, the cell centre.
-- **Centre points snap only to tertiary or larger roads.** From a farm track,
-  Valhalla's one-to-many search in the direction this pipeline uses can
-  overstate the time (in the Minnesota pilot, 7.5% of such pairs by more than
-  5 minutes, and 1.7% with this rule).
+- **Centre points snap only to tertiary or larger roads,** so a trip starts
+  from a road that goes somewhere rather than a farm track or private drive.
 - A point that does not snap to any road is left out; that cell has no entry.
 - Each cell's country, used only for the border flag, is its place's country,
   or for a centre point the country of the nearest GeoNames place.
@@ -54,8 +52,13 @@ files in `config/`, so the files, not this text, are authoritative.
 
 ## 5. Drive times
 
-- Towns are grouped by 1 x 1 degree tile. For each group, one matrix request
-  routes from every grid cell within 840 km in a straight line to those towns.
+- Grid cells are grouped by 1 x 1 degree tile. For each group, one matrix
+  request routes from those cells to every town within 840 km in a straight
+  line. Valhalla runs one forward search from each cell.
+- Why forward: searching backwards from each town would need about five
+  times fewer searches, but in testing it overstated times compared with
+  Valhalla's own route between the same two points (Washington: 5% of trips
+  by more than 5.3%, worst 52%). Forward searches match the route.
 - The 840 km cut is only there to save computing; no road trip within 7 hours
   covers more straight-line distance than that.
 - **Two passes, same graph** (`config/costing.json`):
@@ -87,8 +90,7 @@ files in `config/`, so the files, not this text, are authoritative.
 - the file's structure;
 - the error from starting at a cell's point rather than an exact address (p50
   at most 8 minutes, p90 at most 15);
-- agreement between the search direction used here and the opposite one (p95
-  at most 5 minutes, p99 at most 10);
+- agreement with fresh routes from the same points (p99 within 2 minutes);
 - no implied speeds above 137 km/h (85 mph);
 - named sanity cases per region, such as ferry islands and known routes.
 
