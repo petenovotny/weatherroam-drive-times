@@ -68,13 +68,55 @@ def _matrix(sources, targets, costing_opts, max_dist_m):
     return dur, dist
 
 
-def _run_group(job):
-    name, src_idx, dst_idx, src_pts, dst_pts, costing, max_minutes, out_path = job
-    t0 = time.time()
+def _both_passes(src_pts, dst_pts, costing):
     passes = costing["passes"]
     max_dist = costing["expansion_max_distance_m"]
     base_s, base_km = _matrix(src_pts, dst_pts, passes["default"], max_dist)
     ferry_s, _ = _matrix(src_pts, dst_pts, passes["ferry"], max_dist)
+    return base_s, base_km, ferry_s
+
+
+def _describe(exc: BaseException) -> str:
+    # Valhalla's exception class cannot be pickled back to the parent process,
+    # which turns the real message into an opaque PicklingError. Always hand
+    # back plain strings.
+    return f"{type(exc).__name__}: {exc}"
+
+
+def _run_group(job):
+    """Run one job. Returns ("ok", ...) or ("error", name, message, failed_sources).
+
+    A failing request is retried one source at a time, so one bad origin
+    costs only its own cell; the sources that still fail are reported (their
+    cells get no table entry and the app falls back to its estimate). If
+    every source fails, the fault is on the destination side and the whole
+    job is reported.
+    """
+    name, src_idx, dst_idx, src_pts, dst_pts, costing, max_minutes, out_path = job
+    t0 = time.time()
+    try:
+        base_s, base_km, ferry_s = _both_passes(src_pts, dst_pts, costing)
+        first_error = None
+    except Exception as exc:  # noqa: BLE001 -- reported, never swallowed
+        first_error = _describe(exc)
+        rows = []
+        failed = []
+        for k in range(len(src_pts)):
+            try:
+                rows.append((k, *_both_passes(src_pts[k : k + 1], dst_pts, costing)))
+            except Exception as exc_k:  # noqa: BLE001
+                failed.append((int(src_idx[k]), _describe(exc_k)))
+        if not rows:
+            return ("error", name, first_error, [i for i, _ in failed])
+        keep_k = [k for k, *_ in rows]
+        src_idx = [src_idx[k] for k in keep_k]
+        base_s = np.vstack([r[1] for r in rows])
+        base_km = np.vstack([r[2] for r in rows])
+        ferry_s = np.vstack([r[3] for r in rows])
+        if failed:
+            first_error = f"{first_error}; {len(failed)} source(s) dropped: {failed[:3]}"
+        else:
+            first_error = None
 
     base_min = base_s / 60.0
     keep = np.isfinite(base_min) & (np.round(base_min) <= max_minutes)
@@ -90,7 +132,9 @@ def _run_group(job):
         ferry=ferry,
         km=base_km[si, di].astype(np.float32),
     )
-    return name, len(src_idx), len(dst_idx), int(keep.sum()), time.time() - t0
+    if first_error:
+        return ("partial", name, first_error, len(src_idx), len(dst_idx), int(keep.sum()), time.time() - t0)
+    return ("ok", name, len(src_idx), len(dst_idx), int(keep.sum()), time.time() - t0)
 
 
 def main() -> None:
@@ -161,9 +205,21 @@ def main() -> None:
     t0 = time.time()
     done = 0
     pairs = 0
+    failures = []
     with Pool(workers, initializer=_init, initargs=(args.region,)) as pool:
-        for name, ns, nd, kept, secs in pool.imap_unordered(_run_group, jobs):
+        for result in pool.imap_unordered(_run_group, jobs):
             done += 1
+            if result[0] == "error":
+                _, name, message, cells = result
+                failures.append({"job": name, "error": message, "cells": len(cells)})
+                log(f"[{done}/{len(jobs)}] {name}: FAILED ({len(cells)} cells): {message}")
+                continue
+            if result[0] == "partial":
+                _, name, message, ns, nd, kept, secs = result
+                failures.append({"job": name, "error": message, "partial": True})
+                log(f"[{done}/{len(jobs)}] {name}: PARTIAL: {message}")
+            else:
+                _, name, ns, nd, kept, secs = result
             pairs += kept
             log(f"[{done}/{len(jobs)}] {name}: {ns} cells x {nd} towns -> {kept} pairs in {secs:.1f}s")
     wall = time.time() - t0
@@ -176,12 +232,20 @@ def main() -> None:
                 "cells_this_run": cells_to_run,
                 "pairs_this_run": pairs,
                 "wall_seconds": round(wall, 1),
+                "failed_jobs": sum(1 for f in failures if not f.get("partial")),
+                "partial_jobs": sum(1 for f in failures if f.get("partial")),
+                "failures": failures[:200],
             },
             indent=2,
         )
         + "\n"
     )
-    log(f"done in {wall:.1f}s, {pairs} pairs kept this run")
+    log(f"done in {wall:.1f}s, {pairs} pairs kept this run, {len(failures)} job(s) with errors")
+    # A handful of bad jobs costs a few cells (the app estimates there); many
+    # means something systematic, and the table should not be built on it.
+    failed_jobs = sum(1 for f in failures if not f.get("partial"))
+    if jobs and failed_jobs > max(3, 0.01 * len(jobs)):
+        raise SystemExit(f"{failed_jobs} of {len(jobs)} jobs failed; see compute.json")
 
 
 if __name__ == "__main__":

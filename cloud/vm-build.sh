@@ -6,11 +6,16 @@
 # whether it succeeds or not. The VM also has a hard maximum run duration set
 # by the launcher, as a backstop if this script never reaches the end.
 #
+# The graph bundle is saved to Cloud Storage as soon as it is built; relaunch
+# with --reuse-graph to skip rebuilding it. Worker errors are logged with
+# their real message; a few failed jobs cost only their cells, more than 1%
+# stops the build.
+#
 # A pilot of 100 origin-tile groups runs first. If the projected matrix time
 # exceeds the max-hours metadata value, the build stops there (status
 # "stopped-projection") before spending most of the VM time.
 #
-# Instance metadata: bucket, version, commit, max-hours.
+# Instance metadata: bucket, version, commit, max-hours, reuse-graph (optional).
 set -uo pipefail
 
 MD=http://metadata.google.internal/computeMetadata/v1/instance
@@ -19,6 +24,7 @@ BUCKET=$(md attributes/bucket)
 VERSION=$(md attributes/version)
 COMMIT=$(md attributes/commit)
 MAX_HOURS=$(md attributes/max-hours)
+REUSE_GRAPH=$(md attributes/reuse-graph || true)
 ZONE=$(md zone | awk -F/ '{print $NF}')
 NAME=$(md name)
 DEST="gs://$BUCKET/$VERSION"
@@ -52,7 +58,20 @@ cd pipeline
 
 stage() { echo "=== $1 $(date -u +%FT%TZ)"; }
 stage fetch;        uv run python fetch_inputs.py na
-stage graph;        /usr/bin/time -v ./build_graph.sh na 2> >(tee /tmp/graph-time.txt >&2)
+# The graph bundle: everything the router needs, with inputs.json so the
+# manifest names the OSM data the graph was really built from (a fresh fetch
+# may have pulled a newer extract). Saved as soon as it exists, so a later
+# failure can be retried without rebuilding it.
+BUNDLE="tiles.tar valhalla.json graph.json inputs.json admins.sqlite"
+if [ -n "$REUSE_GRAPH" ]; then
+  stage graph-reuse
+  for f in $BUNDLE; do gcloud storage cp "$REUSE_GRAPH/$f" "../work/na/$f" --quiet; done
+  echo "reused graph from $REUSE_GRAPH"
+else
+  stage graph;      /usr/bin/time -v ./build_graph.sh na 2> >(tee /tmp/graph-time.txt >&2)
+  for f in $BUNDLE; do gcloud storage cp "../work/na/$f" "$DEST/graph/$f" --quiet; done
+  echo "graph bundle saved to $DEST/graph/"
+fi
 stage origins;      uv run python origins.py na
 stage destinations; uv run python destinations.py na --ids ../config/dest-ids-na.txt
 
@@ -79,6 +98,6 @@ stage upload
 gcloud storage cp -r ../out/na "$DEST/out" --quiet
 cp ../work/na/compute.json ../work/na/graph.json ../work/na/inputs.json /tmp/ 2>/dev/null || true
 gcloud storage cp /tmp/compute.json /tmp/graph.json /tmp/inputs.json /tmp/graph-time.txt "$DEST/" --quiet || true
-# Kept for adding towns later without rebuilding the graph (~20-30 GB).
-gcloud storage cp ../work/na/tiles.tar "$DEST/tiles.tar" --quiet || true
+# The graph bundle is already in $DEST/graph/ (or was reused), which also
+# serves adding towns later without rebuilding the graph.
 finish "$RESULT"

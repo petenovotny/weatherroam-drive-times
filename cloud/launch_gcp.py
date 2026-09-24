@@ -84,6 +84,7 @@ def launch(args) -> None:
                 {"key": "version", "value": args.version},
                 {"key": "commit", "value": args.commit},
                 {"key": "max-hours", "value": str(args.max_matrix_hours)},
+                {"key": "reuse-graph", "value": args.reuse_graph},
             ]
         },
         "scheduling": {
@@ -138,6 +139,11 @@ def main() -> None:
     ap.add_argument("--bucket", default="")
     ap.add_argument("--max-run-hours", type=float, default=18)
     ap.add_argument("--max-matrix-hours", type=float, default=12)
+    ap.add_argument(
+        "--reuse-graph",
+        default="",
+        help="gs:// prefix of a graph bundle saved by an earlier run (skips the ~1.5 h graph stage)",
+    )
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--status", action="store_true")
     args = ap.parse_args()
