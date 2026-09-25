@@ -27,7 +27,8 @@
       "to": "Duluth",
       "min": 125,
       "max": 155,
-      "ferry": false
+      "ferry": false,
+      "to_id": 5024719
     },
     {
       "from": [
@@ -69,5 +70,8 @@
       "to": "Charlottetown",
       "ferry": false
     }
-  ]
+  ],
+  "expected_unreachable": {
+    "5922111": "Churchill, Manitoba: no road connection, rail and air only"
+  }
 }

@@ -23,6 +23,7 @@ import random
 import struct
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -88,6 +89,81 @@ def _route_minutes(act, src, targets, centre=False):
     return [None if x is None else x / 60 for x in row]
 
 
+def check_structure(t: Table, region: dict, problems: list[str]) -> tuple[str, bool, str]:
+    """V1, the part that needs only the table: every town reached from somewhere.
+
+    A town with no road connection at all (Churchill, Manitoba: rail and air
+    only) is legitimately unreached; such towns are listed with a reason in
+    the region config's `expected_unreachable` and do not fail the check.
+    """
+    expected = {int(k): v for k, v in region.get("expected_unreachable", {}).items()}
+    reached = np.bincount(t.pair_dest, minlength=len(t.dest_ids))
+    unreached = [int(g) for g in t.dest_ids[reached == 0]]
+    surprise = [g for g in unreached if g not in expected]
+    known = [g for g in unreached if g in expected]
+    if surprise:
+        problems.append(f"{len(surprise)} destinations unreachable from every cell: {surprise[:10]}")
+    detail = "; ".join(problems) or f"{len(t.cell_keys)} cells, {len(t.dest_ids)} towns, {len(t.pair_val)} pairs"
+    if known:
+        detail += "; expected unreachable: " + ", ".join(f"{g} ({expected[g]})" for g in known)
+    return ("V1 structure", not problems, detail)
+
+
+def check_named_cases(t: Table, dests: dict, region: dict) -> tuple[str, bool, str]:
+    """V6: known trips land in their expected range.
+
+    A case names its town by GeoNames id (`to_id`) where the name is not unique
+    in the region (two Duluths in North America). A bare name that matches more
+    than one town is a configuration error, reported as such, never resolved by
+    picking whichever comes first.
+    """
+    by_name: dict[str, list[int]] = {}
+    for gid, r in dests.items():
+        by_name.setdefault(r["name"], []).append(gid)
+    case_notes, case_ok = [], True
+    for case in region.get("named_cases", []):
+        lat, lng = case["from"]
+        if "to_id" in case:
+            gid = int(case["to_id"])
+        else:
+            matches = by_name.get(case["to"], [])
+            if len(matches) > 1:
+                case_ok = False
+                case_notes.append(f"{case['to']}: ambiguous name ({len(matches)} towns), set to_id")
+                continue
+            gid = matches[0] if matches else None
+        hit = t.cell(cell_key(*cell_index(lat, lng, region["grid_deg"])))
+        entry = None
+        if gid is not None and hit is not None:
+            idx = int(np.searchsorted(t.dest_ids, gid))
+            pd, pv = hit
+            where = np.nonzero(pd == idx)[0]
+            if len(where):
+                entry = int(pv[where[0]])
+        if entry is None:
+            case_ok = False
+            case_notes.append(f"{case['to']}: missing")
+            continue
+        minutes, ferry = entry & 0x3FF, bool(entry & (1 << 10))
+        good = ("min" not in case or minutes >= case["min"]) and ("max" not in case or minutes <= case["max"])
+        good = good and ("ferry" not in case or ferry == case["ferry"])
+        case_ok &= good
+        case_notes.append(f"{case['to']}: {minutes} min{' ferry' if ferry else ''} {'ok' if good else 'FAIL'}")
+    return ("V6 named cases", case_ok, "; ".join(case_notes) or "none configured")
+
+
+def table_only(region_name: str, table_path: str, dests_path: str) -> None:
+    """Re-run the table-only checks (V1 reachability, V6) on a published table,
+    without the routing graph or shards the other checks need."""
+    region = load_region(region_name)
+    t = read_table(Path(table_path))
+    dests = {int(r["geonameid"]): r for r in read_tsv(Path(dests_path))}
+    results = [check_structure(t, region, []), check_named_cases(t, dests, region)]
+    for n, ok, d in results:
+        print(f"| {n} | {'pass' if ok else '**FAIL**'} | {d} |")
+    sys.exit(0 if all(ok for _, ok, _ in results) else 1)
+
+
 def main(region_name: str, version: str) -> None:
     region = load_region(region_name)
     wd = work_dir(region_name)
@@ -113,13 +189,7 @@ def main(region_name: str, version: str) -> None:
         if np.any(np.diff(t.minutes[a:b].astype(np.int32)) < 0):
             problems.append(f"cell {t.cell_keys[i]} not sorted by minutes")
             break
-    reached = np.bincount(t.pair_dest, minlength=len(t.dest_ids))
-    unreached = [int(g) for g in t.dest_ids[reached == 0]]
-    if unreached:
-        problems.append(f"{len(unreached)} destinations unreachable from every cell: {unreached[:10]}")
-    results.append(
-        ("V1 structure", not problems, "; ".join(problems) or f"{len(t.cell_keys)} cells, {len(t.dest_ids)} towns, {len(t.pair_val)} pairs")
-    )
+    results.append(check_structure(t, region, problems))
 
     # V2
     diffs = []
@@ -173,31 +243,7 @@ def main(region_name: str, version: str) -> None:
     results.append(("V4 physical bounds", fast == 0, f"{fast} pairs above {MAX_SPEED_KMH:.0f} km/h; {slow} pairs over 1 h below 30 km/h (review); median {np.median(speed[moving]):.0f} km/h"))
 
     # V6
-    by_name = {}
-    for gid, r in dests.items():
-        by_name.setdefault(r["name"], gid)
-    case_notes, case_ok = [], True
-    for case in region.get("named_cases", []):
-        lat, lng = case["from"]
-        gid = by_name.get(case["to"])
-        hit = t.cell(cell_key(*cell_index(lat, lng, region["grid_deg"])))
-        entry = None
-        if gid is not None and hit is not None:
-            idx = int(np.searchsorted(t.dest_ids, gid))
-            pd, pv = hit
-            where = np.nonzero(pd == idx)[0]
-            if len(where):
-                entry = int(pv[where[0]])
-        if entry is None:
-            case_ok = False
-            case_notes.append(f"{case['to']}: missing")
-            continue
-        minutes, ferry = entry & 0x3FF, bool(entry & (1 << 10))
-        good = ("min" not in case or minutes >= case["min"]) and ("max" not in case or minutes <= case["max"])
-        good = good and ("ferry" not in case or ferry == case["ferry"])
-        case_ok &= good
-        case_notes.append(f"{case['to']}: {minutes} min{' ferry' if ferry else ''} {'ok' if good else 'FAIL'}")
-    results.append(("V6 named cases", case_ok, "; ".join(case_notes) or "none configured"))
+    results.append(check_named_cases(t, dests, region))
 
     skipped = ["V5 second routing engine", "V7 ferry census (see V6 cases)", "V8 seasonal probe", "V9 known trips"]
     lines = [f"# Validation: drive-table-{version}", "", f"OSM `{t.header['osm']['file']}`, router {t.header['router']['name']} {t.header['router']['version']}.", "", "| Check | Result | Detail |", "|---|---|---|"]
@@ -209,4 +255,7 @@ def main(region_name: str, version: str) -> None:
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    if sys.argv[1] == "--table-only":
+        table_only(sys.argv[2], sys.argv[3], sys.argv[4])
+    else:
+        main(sys.argv[1], sys.argv[2])
