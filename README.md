@@ -9,8 +9,9 @@ inputs that produce the table. Each release also carries the **table itself**.
 Both are offered here to meet the share-alike terms of the Open Database
 Licence (ODbL) that OpenStreetMap data is under.
 
-**Status:** the pipeline is tested on Minnesota and Washington; the first
-United States and Canada table has not been released yet.
+**Status:** the first United States and Canada table, `na-2026.09.1`, is
+released (OpenStreetMap data of 2026-09-23). See
+[Releases](https://github.com/petenovotny/weatherroam-drive-times/releases).
 
 ## What's in a release
 
