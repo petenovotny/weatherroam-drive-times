@@ -5,3 +5,15 @@
 __pycache__/
 out/
 work/
+
+# Credentials. cloud/launch_gcp.py takes a service-account key file via
+# --key; keep any such key, and any env file, out of this public repo.
+.env
+.env.*
+# Bracket classes make these case-insensitive, so the documented
+# SERVICE_ACCOUNT.json name matches too.
+*[Ss][Ee][Rr][Vv][Ii][Cc][Ee][-_][Aa][Cc][Cc][Oo][Uu][Nn][Tt]*.json
+*[-_][Kk][Ee][Yy].json
+*[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll][Ss]*.json
+*.pem
+*.p12
