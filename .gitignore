@@ -5,3 +5,15 @@
 __pycache__/
 out/
 work/
+
+# Credentials. cloud/launch_gcp.py takes a service-account key file via
+# --key; keep any such key, and any env file, out of this public repo.
+.env
+.env.*
+*service-account*.json
+*service_account*.json
+*-key.json
+*_key.json
+*credentials*.json
+*.pem
+*.p12
