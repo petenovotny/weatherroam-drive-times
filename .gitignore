@@ -5,3 +5,16 @@
 __pycache__/
 out/
 work/
+
+# Secrets. Never commit environment files or Google service-account keys.
+.env*
+!.env.example
+*service-account*.json
+*service_account*.json
+*SERVICE_ACCOUNT*.json
+*-sa.json
+*-sa-key.json
+*credentials*.json
+gha-creds-*.json
+# Console-downloaded keys are named <project-id>-<12 hex chars>.json
+*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json

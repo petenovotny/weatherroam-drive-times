@@ -2,7 +2,7 @@
 
 Both Codex and Claude Code read this file at the start of a session and rewrite it at the end. It describes the current state. It is not a log. If a merge conflicts here, reconcile the newer verified state.
 
-Last updated: 2026-10-14 by Codex, on branch `codex/handoff-2026-10-14`.
+Last updated: 2026-10-15 by Claude Code, on branch `claude/project-thread-a6p8o9`.
 
 ## State
 
@@ -11,7 +11,7 @@ Eligible unfinished work and local branch tips have recovery commits on GitHub. 
 
 Current project facts carried forward from the latest checked-in handoff (external live state was not rechecked):
 
-The shared agent files were added today. No other change.
+`.gitignore` now covers `.env*` (except `.env.example`) and Google service-account key files. No env or key file was ever tracked in this repo's history (checked 2026-10-15).
 
 ## In progress
 
