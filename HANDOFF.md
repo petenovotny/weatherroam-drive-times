@@ -6,7 +6,7 @@ Last updated: 2026-10-15 by Claude Code, on branch `claude/project-thread-a6p8o9
 
 ## State
 
-Claude should begin on `codex/handoff-2026-10-14`, based on fetched GitHub main `c3795ac0e9f2`, and read `HANDOFF-INVENTORY-2026-10-14.md`. That inventory covers all local clones/worktrees, branch mappings, stashes and excluded paths.
+Start each session from the current `main` tip on a fresh task branch, and read `HANDOFF-INVENTORY-2026-10-14.md`. The Codex handoff branch merged as #2 and is not a base for new work. That inventory covers all local clones/worktrees, branch mappings, stashes and excluded paths.
 Eligible unfinished work and local branch tips have recovery commits on GitHub. Recovery branches are untested; source branches may overlap squash-merged main. No branches, worktrees, stashes or files were deleted.
 
 Current project facts carried forward from the latest checked-in handoff (external live state was not rechecked):
