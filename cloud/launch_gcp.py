@@ -6,7 +6,15 @@ A hard maximum run duration (DELETE on expiry) is the backstop.
 
 Usage (no gcloud needed; google-auth + REST):
   uv run --with google-auth --with requests python cloud/launch_gcp.py \\
-      --key SERVICE_ACCOUNT.json --version na-2026.10.1 --commit <sha> [--dry-run]
+      --key SERVICE_ACCOUNT.json --vm-service-account BUILDER@PROJECT.iam.gserviceaccount.com \\
+      --version na-2026.10.1 --commit <sha> [--dry-run]
+
+The key is the identity that creates the VM. The VM itself runs as
+--vm-service-account, a separate account that should hold only what the build
+needs: write to the results bucket and delete its own instance. Without the
+flag the VM runs as the key's account, which then sits on a public-IP VM
+running fetched code for half a day; the launcher says so and asks for
+--allow-launcher-identity.
   uv run --with google-auth --with requests python cloud/launch_gcp.py --key ... --status --version na-2026.10.1
 
 Cost: n2-highmem-32 on demand is roughly $1.9/hour in us-central1; the
@@ -53,7 +61,17 @@ def ensure_bucket(s, project: str, bucket: str, region: str) -> None:
 
 
 def launch(args) -> None:
-    s, project, sa = session(args.key)
+    s, project, launcher_sa = session(args.key)
+    if args.vm_service_account:
+        sa = args.vm_service_account
+    elif args.allow_launcher_identity:
+        sa = launcher_sa
+        print(f"warning: the VM runs as the launcher's own account {launcher_sa}")
+    else:
+        sys.exit(
+            "pass --vm-service-account <email> (a build-only account), or "
+            "--allow-launcher-identity to run the VM as the key's account"
+        )
     zone = args.zone
     region = zone.rsplit("-", 1)[0]
     bucket = args.bucket or f"{project}-drive-times"
@@ -95,6 +113,7 @@ def launch(args) -> None:
         },
         "labels": {"purpose": "drive-table-build"},
     }
+    print(f"VM identity {sa}")
     print(f"project {project}, zone {zone}, {args.machine}, {args.disk_gb} GB, "
           f"max run {args.max_run_hours} h, pilot limit {args.max_matrix_hours} h")
     print(f"results -> gs://{bucket}/{args.version}/")
@@ -133,6 +152,16 @@ def main() -> None:
     ap.add_argument("--key", type=Path, required=True)
     ap.add_argument("--version", required=True)
     ap.add_argument("--commit", default="")
+    ap.add_argument(
+        "--vm-service-account",
+        default="",
+        help="email of the account the VM runs as; needs only bucket write and instance delete",
+    )
+    ap.add_argument(
+        "--allow-launcher-identity",
+        action="store_true",
+        help="run the VM as the key's own account (the old behaviour)",
+    )
     ap.add_argument("--zone", default="us-central1-a")
     ap.add_argument("--machine", default="n2-highmem-32")
     ap.add_argument("--disk-gb", type=int, default=450)
