@@ -39,6 +39,24 @@ Requirements: [uv](https://docs.astral.sh/uv/) and
 the Valhalla router, installs from `pyproject.toml`. [METHOD.md](METHOD.md)
 explains every step and setting in plain language.
 
+### Cloud build identity
+
+`cloud/launch_gcp.py` builds the North America table on a one-shot Google
+Cloud VM. Two accounts are involved and should not be the same one:
+
+- **The launcher** (`--key`): creates the VM and, the first time, the results
+  bucket. It needs Compute Instance Admin on the project, Storage Admin for
+  the bucket, and Service Account User on the build account below.
+- **The build account** (`--vm-service-account`): what the VM runs as for
+  half a day, on a public IP, running code it fetched. Give it only Storage
+  Object Admin on the results bucket (it also reads `--reuse-graph` bundles
+  from there) and permission to delete its own instance, for example
+  `compute.instances.delete` in a small custom role. No project-wide roles,
+  and nothing to do with Google Play.
+
+The launcher refuses to start without `--vm-service-account`;
+`--allow-launcher-identity` restores the old behaviour for a one-off.
+
 ## Attribution
 
 Drive times © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright),

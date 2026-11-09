@@ -49,7 +49,14 @@ echo "running" > /tmp/STATUS && gcloud storage cp /tmp/STATUS "$DEST/STATUS" --q
 
 apt-get update -q
 apt-get install -y -q osmium-tool git time
-curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+# uv from a pinned release, checked against its published SHA-256, instead of
+# piping whatever install.sh serves today into a root shell. To move to a new
+# uv, change both lines (the hash is in the release's .sha256 file).
+UV_VERSION=0.13.7
+UV_SHA256=c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83
+curl -LsSf -o /tmp/uv.tar.gz "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-unknown-linux-gnu.tar.gz"
+echo "$UV_SHA256  /tmp/uv.tar.gz" | sha256sum -c -
+tar -xzf /tmp/uv.tar.gz -C /usr/local/bin --strip-components=1 uv-x86_64-unknown-linux-gnu/uv uv-x86_64-unknown-linux-gnu/uvx
 git clone https://github.com/petenovotny/weatherroam-drive-times /opt/wrdt
 cd /opt/wrdt
 git checkout "$COMMIT"

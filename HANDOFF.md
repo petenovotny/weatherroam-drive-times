@@ -2,7 +2,7 @@
 
 Both Codex and Claude Code read this file at the start of a session and rewrite it at the end. It describes the current state. It is not a log. If a merge conflicts here, reconcile the newer verified state.
 
-Last updated: 2026-10-15 by Claude Code, on branch `claude/project-thread-a6p8o9`.
+Last updated: 2026-11-03 by Claude Code, on branch `claude/project-thread-czayl9`.
 
 ## State
 
@@ -15,7 +15,7 @@ Current project facts carried forward from the latest checked-in handoff (extern
 
 ## In progress
 
-Nothing recorded.
+2026-11-03, `claude/project-thread-czayl9` (PR open): security review follow-ups (2026-10-26 review, fixes 1 and 9). `cloud/launch_gcp.py` now runs the VM as a separate build account (`--vm-service-account`) and refuses without it unless `--allow-launcher-identity`; README "Cloud build identity" lists the roles. `cloud/vm-build.sh` installs uv 0.13.7 from the release tarball with a SHA-256 check instead of piping install.sh into a root shell. Before the next cloud build, Pete creates the build account in GCP; not tested on a real VM (needs a paid build).
 
 - Remaining preserved branch work is listed by source branch and SHA in the inventory. All newly recovered work is UNTESTED; historical branch tests were not revalidated.
 
